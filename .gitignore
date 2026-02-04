@@ -1,0 +1,30 @@
+# Build folders (CMake)
+build/
+build_*/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+compile_commands.json
+install_manifest.txt
+
+# Binaries
+sine_sum
+*.exe
+*.out
+*.app
+
+# macOS
+.DS_Store
+
+# Logs / temp
+*.log
+*.tmp
+
+# IDE (optional)
+.vscode/
+.idea/
+
+# Debug symbols
+*.dSYM/
