@@ -9,7 +9,7 @@
 ```bash
 mkdir build
 cd build
-cmake .. -DARRAY_DOUBLE=ON
+cmake .. -DTYPE=ON
 make
 ./sine_sum
 ```
