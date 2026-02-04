@@ -12,7 +12,10 @@ cd build
 cmake .. -DARRAY_DOUBLE=ON
 make
 ./sine_sum
+```
 
-```output:
+## output:
+```bash
 double: sum = 4.80487e-11
 float:  sum = -0.0277862
+```
