@@ -10,7 +10,7 @@ using T = float;
 #endif
 
 int main() {
-    const int N = 10000000;
+    const int N = 100000000000;
 
     std::vector<T> a(N);
     T sum = 0;
