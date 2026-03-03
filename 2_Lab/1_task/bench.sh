@@ -1,43 +1,49 @@
+#!/usr/bin/env bash
 set +e
 export LC_ALL=C
 
-# ====== настройка ======
-SRC="matrix.cpp"          # имя твоего .cpp
+SRC="matrix.cpp"
 OUTCSV="results.csv"
 LOGDIR="logs"
 
 Ns=(20000 40000)
 Ts=(1 2 4 7 8 16 20 40)
 
-# OpenMP runtime (ты сказал, что всё скачано)
-LIBOMP="$(brew --prefix libomp)"
-CXX="clang++"
-CXXFLAGS=(
-  -O3
-  -std=c++17
-  -Xpreprocessor -fopenmp
-  -I"$LIBOMP/include"
-  -L"$LIBOMP/lib" -lomp
-  -Wl,-rpath,"$LIBOMP/lib"
-)
-
 mkdir -p "$LOGDIR"
-
-# CSV header
 echo "N,threads_req,threads_used,init_time_s,work_time_s,total_time_s,speedup_work,speedup_total,res,status" > "$OUTCSV"
 
-# ====== helpers ======
-num_div() {
-  # num_div a b => a/b (float)
-  awk -v a="$1" -v b="$2" 'BEGIN{ if (b>0) printf "%.6f", a/b; else printf "" }'
-}
+num_div() { awk -v a="$1" -v b="$2" 'BEGIN{ if (b>0) printf "%.6f", a/b; else printf "" }'; }
+
+# ===== detect OS + choose compiler flags =====
+UNAME="$(uname -s)"
+
+if [[ "$UNAME" == "Linux" ]]; then
+  CXX="${CXX:-g++}"
+  CXXFLAGS=(-O3 -std=c++17 -fopenmp)
+elif [[ "$UNAME" == "Darwin" ]]; then
+  CXX="${CXX:-clang++}"
+  LIBOMP="$(brew --prefix libomp 2>/dev/null)"
+  if [[ -z "$LIBOMP" ]]; then
+    echo "ERROR: libomp not found. On macOS run: brew install libomp"
+    exit 1
+  fi
+  CXXFLAGS=(
+    -O3 -std=c++17
+    -Xpreprocessor -fopenmp
+    -I"$LIBOMP/include"
+    -L"$LIBOMP/lib" -lomp
+    -Wl,-rpath,"$LIBOMP/lib"
+  )
+else
+  echo "ERROR: unsupported OS: $UNAME"
+  exit 1
+fi
 
 for N in "${Ns[@]}"; do
   echo "=============================="
   echo "N=$N"
   echo "=============================="
 
-  # делаем временную копию исходника и подменяем #define N ...
   TMP="__tmp_N${N}.cpp"
   sed -E "s/^([[:space:]]*#define[[:space:]]+N[[:space:]]+)[0-9]+/\1${N}/" "$SRC" > "$TMP"
 
@@ -45,7 +51,6 @@ for N in "${Ns[@]}"; do
   echo "Compile -> $exe"
   "$CXX" "${CXXFLAGS[@]}" "$TMP" -o "$exe"
   comp_rc=$?
-
   rm -f "$TMP"
 
   if [ $comp_rc -ne 0 ]; then
@@ -59,7 +64,6 @@ for N in "${Ns[@]}"; do
   base_work=""
   base_total=""
 
-  # шапка таблицы в терминал
   printf "%-7s %-10s %-12s %-12s %-12s %-12s %-14s %-14s %-12s\n" \
     "N" "threads" "used" "init(s)" "work(s)" "total(s)" "S_work" "S_total" "status"
 
@@ -81,10 +85,8 @@ for N in "${Ns[@]}"; do
     work_time=$(echo "$out" | awk -F'Work time' '/Work time/{print $2; exit}')
     res=$(echo "$out" | tail -n 1)
 
-    # total = init + work
     total_time=$(awk -v a="$init_time" -v b="$work_time" 'BEGIN{printf "%.10f", a+b}')
 
-    # базовые времена для ускорения (по work и по total)
     if [ "$t" -eq 1 ] && [ -n "$work_time" ] && [ -n "$total_time" ]; then
       base_work="$work_time"
       base_total="$total_time"
@@ -99,11 +101,9 @@ for N in "${Ns[@]}"; do
       speedup_total=$(num_div "$base_total" "$total_time")
     fi
 
-    # терминал
     printf "%-7s %-10s %-12s %-12s %-12s %-12s %-14s %-14s %-12s\n" \
       "$N" "$t" "$threads_used" "$init_time" "$work_time" "$total_time" "$speedup_work" "$speedup_total" "OK"
 
-    # CSV
     echo "$N,$t,$threads_used,$init_time,$work_time,$total_time,$speedup_work,$speedup_total,$res,OK" >> "$OUTCSV"
   done
 done
