@@ -9,7 +9,7 @@
 #include <filesystem>
 
 #ifndef N
-#define N 80000
+#define N 35000
 #endif
 
 #ifndef MAX_ITERS
@@ -159,7 +159,7 @@ int main(int argc, char** argv) {
         omp_set_num_threads(t);
         RunTimes r = run_once();
 
-        std::cout << "init_time=" << N << std::endl;
+        std::cout << "N=" << N << std::endl;
         std::cout << "init_time=" << r.init_s << std::endl;
         std::cout << "work_time=" << r.work_s << std::endl;
         std::cout << "checksum=" << r.checksum << std::endl;
