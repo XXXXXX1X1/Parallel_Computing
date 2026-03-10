@@ -9,7 +9,7 @@
 #include <filesystem>
 
 #ifndef N
-#define N 8000
+#define N 80000
 #endif
 
 #ifndef MAX_ITERS
@@ -166,10 +166,7 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories("results");
 
     std::ofstream f("results/lab2_var2_threads.csv", std::ios::out | std::ios::trunc);
-    if (!f.is_open()) {
-        std::cerr << "ERROR: cannot open results/lab2_var2_threads.csv" << std::endl;
-        return 2;
-    }
+    
 
     f << "threads,work_time_s\n";
 
@@ -177,6 +174,7 @@ int main(int argc, char** argv) {
         omp_set_num_threads(t);
         RunTimes r = run_once();
 
+        std::cout << "init_time=" << N << std::endl;
         std::cout << "init_time=" << r.init_s << std::endl;
         std::cout << "work_time=" << r.work_s << std::endl;
         std::cout << "checksum=" << r.checksum << std::endl;

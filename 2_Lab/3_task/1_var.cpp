@@ -41,15 +41,11 @@ static std::vector<int> make_threads_list() {
     std::vector<int> out;
 
     for (int t : base) {
-        if (t <= max_threads) out.push_back(t);
+        if (t <= max_threads) {
+            out.push_back(t);
+        }
     }
 
-    if (out.empty() || out.back() != max_threads) {
-        out.push_back(max_threads);
-    }
-
-    std::sort(out.begin(), out.end());
-    out.erase(std::unique(out.begin(), out.end()), out.end());
     return out;
 }
 
@@ -155,10 +151,7 @@ int main(int argc, char** argv) {
     std::filesystem::create_directories("results");
 
     std::ofstream f("results/lab2_var1_threads.csv", std::ios::out | std::ios::trunc);
-    if (!f.is_open()) {
-        std::cerr << "ERROR: cannot open results/lab2_var1_threads.csv" << std::endl;
-        return 2;
-    }
+    
 
     f << "threads,work_time_s\n";
 
@@ -166,6 +159,7 @@ int main(int argc, char** argv) {
         omp_set_num_threads(t);
         RunTimes r = run_once();
 
+        std::cout << "init_time=" << N << std::endl;
         std::cout << "init_time=" << r.init_s << std::endl;
         std::cout << "work_time=" << r.work_s << std::endl;
         std::cout << "checksum=" << r.checksum << std::endl;
