@@ -9,7 +9,7 @@
 #include <filesystem>
 
 #ifndef N
-#define N 80000
+#define N 35000
 #endif
 
 #ifndef MAX_ITERS
