@@ -46,14 +46,6 @@ static std::vector<int> make_threads_list() {
         if (t <= max_threads) out.push_back(t);
     }
 
-    // Добавление максимального числа потоков
-    if (out.empty() || out.back() != max_threads) {
-        out.push_back(max_threads);
-    }
-
-    // Удаление возможных повторов
-    std::sort(out.begin(), out.end());
-    out.erase(std::unique(out.begin(), out.end()), out.end());
     return out;
 }
 
@@ -176,6 +168,7 @@ int main(int argc, char** argv) {
     if (!has_flag(argc, argv, "--bench")) {
         RunTimes r = run_once();
 
+        std::cout << "N=" << N << std::endl;
         std::cout << "init_time=" << r.init_s << std::endl;
         std::cout << "work_time=" << r.work_s << std::endl;
         std::cout << "checksum=" << r.checksum << std::endl;
