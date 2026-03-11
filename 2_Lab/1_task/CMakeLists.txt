@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(matvec_omp CXX)
+project(matrix_omp CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -34,22 +34,22 @@ if(NOT OpenMP_CXX_FOUND AND NOT TARGET OpenMP::OpenMP_CXX)
 endif()
 
 if(BENCH)
-  add_executable(matvec_bench matrix.cpp)
-  target_link_libraries(matvec_bench PRIVATE OpenMP::OpenMP_CXX)
+  add_executable(matrix_bench matrix.cpp)
+  target_link_libraries(matrix_bench PRIVATE OpenMP::OpenMP_CXX)
 
   add_custom_target(bench
-    COMMAND $<TARGET_FILE:matvec_bench> --bench
+    COMMAND $<TARGET_FILE:matrix_bench> --bench
     COMMAND python3 ${CMAKE_SOURCE_DIR}/plot.py ${CMAKE_BINARY_DIR}/results.csv
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEPENDS matvec_bench
+    DEPENDS matrix_bench
   )
 else()
-  add_executable(matvec matrix.cpp)
-  target_link_libraries(matvec PRIVATE OpenMP::OpenMP_CXX)
+  add_executable(matrix matrix.cpp)
+  target_link_libraries(matrix PRIVATE OpenMP::OpenMP_CXX)
 
   add_custom_target(run
-    COMMAND $<TARGET_FILE:matvec>
+    COMMAND $<TARGET_FILE:matrix>
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    DEPENDS matvec
+    DEPENDS matrix
   )
 endif()

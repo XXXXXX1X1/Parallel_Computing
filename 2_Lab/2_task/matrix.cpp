@@ -51,12 +51,12 @@ static double integrate_omp(long long nsteps, double a, double b) {
                         : (long long)(thread_id + 1) * chunk;
 
         for (long long i = start; i < end; i++) {
-            // метод средних точек: x_i = a + (i+0.5)h
+            // метод средних точек:
             double x = a + (i + 0.5) * h;
             local += f(x);
         }
 
-        // атомарно добавляем локальную сумму к общей
+        //  добавляем локальную сумму к общей
         #pragma omp atomic
         sum += local;
     }
@@ -74,7 +74,7 @@ static RunTimes run_once(long long nsteps) {
 
     auto start = std::chrono::steady_clock::now();
 
-    // пример: интеграл sin(x) от 0 до pi = 2
+    
     double a = 0.0;
     double b = M_PI;
 

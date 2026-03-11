@@ -21,13 +21,14 @@
 #endif
 
 struct RunTimes {
-    double init_s;
-    double work_s;
-    double checksum;
-    double final_diff;
-    int iters;
+    double init_s;      // время инициализации
+    double work_s;      // время вычислений
+    double checksum;    // контрольная сумма
+    double final_diff;  // последняя погрешность
+    int iters;          // число выполненных итераций
 };
 
+// Проверка наличия флага в аргументах
 static bool has_flag(int argc, char** argv, const char* flag) {
     for (int i = 1; i < argc; i++) {
         if (std::strcmp(argv[i], flag) == 0) return true;
@@ -35,6 +36,7 @@ static bool has_flag(int argc, char** argv, const char* flag) {
     return false;
 }
 
+// Формирование списка чисел потоков для тестов
 static std::vector<int> make_threads_list() {
     std::vector<int> base = {1, 2, 4, 7, 8, 16, 20, 40};
     int max_threads = omp_get_num_procs();
@@ -44,39 +46,48 @@ static std::vector<int> make_threads_list() {
         if (t <= max_threads) out.push_back(t);
     }
 
+    // Добавление максимального числа потоков
     if (out.empty() || out.back() != max_threads) {
         out.push_back(max_threads);
     }
 
+    // Удаление возможных повторов
     std::sort(out.begin(), out.end());
     out.erase(std::unique(out.begin(), out.end()), out.end());
     return out;
 }
 
+// Один запуск вычисления
 static RunTimes run_once() {
     double* b = new double[N];
     double* x = new double[N];
     double* x_new = new double[N];
 
+    // Параметр шага метода
     double tau = 1.0 / (2.0 * (double)(N + 1));
 
     auto start1 = std::chrono::steady_clock::now();
 
+    // Запуск общей параллельной области для инициализации
     #pragma omp parallel
     {
+        // Выполнение блока только одним потоком
         #pragma omp single
         std::cout << "threads=" << omp_get_num_threads() << std::endl;
 
+        // Параллельная инициализация массива b
         #pragma omp for
         for (int i = 0; i < N; i++) {
             b[i] = (double)(N + 1);
         }
 
+        // Параллельная инициализация массива x
         #pragma omp for
         for (int i = 0; i < N; i++) {
             x[i] = 0.0;
         }
 
+        // Параллельная инициализация массива x_new
         #pragma omp for
         for (int i = 0; i < N; i++) {
             x_new[i] = 0.0;
@@ -91,16 +102,20 @@ static RunTimes run_once() {
     int iters_done = 0;
     bool stop = false;
 
+    // Общая параллельная область для итерационного процесса
     #pragma omp parallel shared(b, x, x_new, final_diff, diff, iters_done, stop)
     {
         for (int it = 0; it < MAX_ITERS; it++) {
+            // Обнуление diff одним потоком
             #pragma omp single
             diff = 0.0;
 
+            // Параллельное вычисление нового приближения
             #pragma omp for reduction(max:diff)
             for (int i = 0; i < N; i++) {
                 double ax = 0.0;
 
+                // Умножение строки матрицы на вектор
                 for (int j = 0; j < N; j++) {
                     if (j == i) ax += 2.0 * x[j];
                     else        ax += x[j];
@@ -113,11 +128,13 @@ static RunTimes run_once() {
                 if (cur > diff) diff = cur;
             }
 
+            // Параллельное копирование нового решения
             #pragma omp for
             for (int i = 0; i < N; i++) {
                 x[i] = x_new[i];
             }
 
+            // Обновление параметров итерации одним потоком
             #pragma omp single
             {
                 final_diff = diff;
@@ -125,6 +142,7 @@ static RunTimes run_once() {
                 stop = (diff < EPS);
             }
 
+            // Синхронизация потоков перед проверкой остановки
             #pragma omp barrier
             if (stop) break;
         }
@@ -134,6 +152,7 @@ static RunTimes run_once() {
 
     double checksum = 0.0;
 
+    // Параллельный подсчёт контрольной суммы
     #pragma omp parallel for reduction(+:checksum)
     for (int i = 0; i < N; i++) {
         checksum += x[i];
@@ -150,8 +169,10 @@ static RunTimes run_once() {
 }
 
 int main(int argc, char** argv) {
+    // Отключение автоматического изменения числа потоков
     omp_set_dynamic(0);
 
+    // Обычный запуск без бенчмарка
     if (!has_flag(argc, argv, "--bench")) {
         RunTimes r = run_once();
 
@@ -161,24 +182,26 @@ int main(int argc, char** argv) {
         return 0;
     }
 
+    // Получение списка чисел потоков
     std::vector<int> Ts = make_threads_list();
 
     std::filesystem::create_directories("results");
 
     std::ofstream f("results/lab2_var2_threads.csv", std::ios::out | std::ios::trunc);
-    
 
+    // Заголовок CSV-файла
     f << "threads,work_time_s\n";
 
     for (int t : Ts) {
         omp_set_num_threads(t);
         RunTimes r = run_once();
 
-        std::cout << "N" << N << std::endl;
+        std::cout << "N=" << N << std::endl;
         std::cout << "init_time=" << r.init_s << std::endl;
         std::cout << "work_time=" << r.work_s << std::endl;
         std::cout << "checksum=" << r.checksum << std::endl;
 
+        // Сохранение результата в файл
         f << t << ","
           << r.work_s << "\n";
     }
