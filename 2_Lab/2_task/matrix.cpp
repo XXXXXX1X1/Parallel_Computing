@@ -25,7 +25,7 @@ static bool has_flag(int argc, char** argv, const char* flag) {
     return false;
 }
 
-// Функция под интеграл (можешь поменять, но тогда меняй и "ожидаемое" при проверке)
+// Функция под интеграл 
 static inline double f(double x) {
     return sin(x);
 }
@@ -43,7 +43,7 @@ static double integrate_omp(long long nsteps, double a, double b) {
         int num_threads = omp_get_num_threads();
         int thread_id   = omp_get_thread_num();
 
-        // ручное разбиение итераций по потокам (как в твоём стиле)
+        // ручное разбиение итераций по потокам 
         long long chunk = nsteps / num_threads;
         long long start = (long long)thread_id * chunk;
         long long end   = (thread_id == num_threads - 1)
@@ -93,7 +93,7 @@ static RunTimes run_once(long long nsteps) {
 int main(int argc, char** argv) {
     long long nsteps = (long long)NSTEPS;
 
-    // Обычный режим: один прогон (без --bench)
+    // Обычный режим: один прогон 
     if (!has_flag(argc, argv, "--bench")) {
         (void)run_once(nsteps);
         return 0;
@@ -123,15 +123,3 @@ int main(int argc, char** argv) {
     return 0;
 }
 
-/*
-Сборка на macOS без CMake (libomp из brew):
-
-LIBOMP="$(brew --prefix libomp)"
-
-clang++ -O3 -std=c++17 integrate.cpp \
-  -Xpreprocessor -fopenmp \
-  -I"$LIBOMP/include" \
-  -L"$LIBOMP/lib" -lomp \
-  -Wl,-rpath,"$LIBOMP/lib" \
-  -o integrate
-*/
