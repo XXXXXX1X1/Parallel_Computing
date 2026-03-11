@@ -55,15 +55,21 @@ static RunTimes run_once() {
     double* x = new double[N];
     double* x_new = new double[N];
 
-    // Параметр шага метода
-    double tau = 1.0 / (2.0 * (double)(N + 1));
+    const double tau = 1.0 / (2.0 * (double)(N + 1));
 
     auto start1 = std::chrono::steady_clock::now();
 
-    // Запуск общей параллельной области для инициализации
+    double final_diff = 0.0;
+    double diff = 0.0;
+    int iters_done = 0;
+    bool stop = false;
+
+    auto start2 = start1;
+
+    // Одна общая параллельная область
     #pragma omp parallel
     {
-        // Выполнение блока только одним потоком
+        // Вывод числа потоков одним потоком
         #pragma omp single
         std::cout << "threads=" << omp_get_num_threads() << std::endl;
 
@@ -84,19 +90,16 @@ static RunTimes run_once() {
         for (int i = 0; i < N; i++) {
             x_new[i] = 0.0;
         }
-    }
 
-    auto end1 = std::chrono::steady_clock::now();
-    auto start2 = std::chrono::steady_clock::now();
+        // Завершение этапа инициализации и старт вычислений
+        #pragma omp single
+        {
+            auto end1 = std::chrono::steady_clock::now();
+            start2 = std::chrono::steady_clock::now();
+            (void)end1;
+        }
 
-    double final_diff = 0.0;
-    double diff = 0.0;
-    int iters_done = 0;
-    bool stop = false;
-
-    // Общая параллельная область для итерационного процесса
-    #pragma omp parallel shared(b, x, x_new, final_diff, diff, iters_done, stop)
-    {
+        // Итерационный процесс
         for (int it = 0; it < MAX_ITERS; it++) {
             // Обнуление diff одним потоком
             #pragma omp single
@@ -154,7 +157,7 @@ static RunTimes run_once() {
     delete[] x;
     delete[] x_new;
 
-    const std::chrono::duration<double> elapsed1{end1 - start1};
+    const std::chrono::duration<double> elapsed1{start2 - start1};
     const std::chrono::duration<double> elapsed2{end2 - start2};
 
     return {elapsed1.count(), elapsed2.count(), checksum, final_diff, iters_done};
