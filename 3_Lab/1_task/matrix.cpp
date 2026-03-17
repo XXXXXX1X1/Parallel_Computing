@@ -1,7 +1,6 @@
 #include <fstream>
 #include <iostream>
 #include <chrono>
-#include <math.h>
 #include <vector>
 #include <string>
 #include <cstring>
@@ -40,7 +39,7 @@ static RunTimes run_once(int num_threads) {
     std::vector<std::thread> threads;
 
     for (int thread_id = 0; thread_id < num_threads; thread_id++) {
-        threads.emplace_back([=, &A, &x, &y]() {
+        threads.emplace_back([A, x, y, thread_id, num_threads]() {
             // ===== ИНИЦИАЛИЗАЦИЯ A =====
             long long totalA = (long long)NVAL * NVAL;
             long long sizeA  = totalA / num_threads;
@@ -87,7 +86,7 @@ static RunTimes run_once(int num_threads) {
     threads.clear();
 
     for (int thread_id = 0; thread_id < num_threads; thread_id++) {
-        threads.emplace_back([=, &A, &x, &y]() {
+        threads.emplace_back([A, x, y, thread_id, num_threads]() {
             long long rows_per_thread = NVAL / num_threads;
             long long start = (long long)thread_id * rows_per_thread;
             long long end   = (thread_id == num_threads - 1)
@@ -131,7 +130,7 @@ static RunTimes run_once(int num_threads) {
 }
 
 int main(int argc, char** argv) {
-    // Обычный режим: один прогон (без флага --bench), N берётся из #define N
+    // Обычный режим: один прогон (без флага --bench)
     if (!has_flag(argc, argv, "--bench")) {
         int t = (int)std::thread::hardware_concurrency();
         if (t <= 0) t = 4;
