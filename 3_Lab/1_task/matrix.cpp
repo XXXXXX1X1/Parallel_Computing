@@ -82,9 +82,9 @@ static RunTimes run_once(int num_threads) {
 
     auto end1 = std::chrono::steady_clock::now();   // конец замера инициализации
 
-    // Параллельное умножение матрицы на вектор
     threads.clear();
-
+    
+    // Параллельное умножение матрицы на вектор
     for (int thread_id = 0; thread_id < num_threads; thread_id++) {
         threads.emplace_back([A, x, y, thread_id, num_threads]() {
             long long rows_per_thread = NVAL / num_threads;
