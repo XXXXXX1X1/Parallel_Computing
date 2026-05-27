@@ -2,7 +2,6 @@
 #include <cmath>
 #include <chrono>
 #include <cstddef>
-#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <limits>
@@ -30,31 +29,34 @@ struct Result {
     std::vector<double> grid;
 };
 
+
 [[noreturn]] void fail(const std::string& message) {
     throw std::runtime_error(message);
 }
 
+// Выполняет линейную интерполяцию между двумя значениями.
+// Плавно заполнением границы между углами области.
 double interpolate(double left, double right, std::size_t pos, std::size_t last) {
-    if (last == 0) {
-        return left;
-    }
     const double t = static_cast<double>(pos) / static_cast<double>(last);
     return left + (right - left) * t;
 }
 
+// Переводит двумерный индекс сетки в индекс одномерного массива.
 std::size_t index_of(std::size_t row, std::size_t col, std::size_t n) {
     return row * n + col;
 }
 
+// Считывает параметры запуска из командной строки.
 Config parse_args(int argc, char** argv) {
     namespace po = boost::program_options;
 
     Config cfg;
+
     po::options_description options("Options");
     options.add_options()
         ("size", po::value<std::size_t>(&cfg.size)->default_value(cfg.size), "Grid size (NxN)")
         ("epsilon", po::value<double>(&cfg.epsilon)->default_value(cfg.epsilon), "Convergence threshold")
-        ("max-iterations", po::value<int>(&cfg.max_iterations)->default_value(cfg.max_iterations), "Maximum number of Jacobi iterations");
+        ("max-iterations", po::value<int>(&cfg.max_iterations)->default_value(cfg.max_iterations), "Maximum iterations");
 
     po::variables_map vm;
     po::store(po::parse_command_line(argc, argv, options), vm);
@@ -63,6 +65,7 @@ Config parse_args(int argc, char** argv) {
     return cfg;
 }
 
+// Проверяет корректность параметров перед расчётом.
 void validate_config(const Config& cfg) {
     if (cfg.size < 2) {
         fail("Grid size must be at least 2.");
@@ -75,14 +78,18 @@ void validate_config(const Config& cfg) {
     }
 }
 
+// Заполняет граничные условия в обеих сетках.
+// Внутренние точки остаются нулевыми и дальше пересчитываются методом Якоби.
 void initialize_boundaries(double* grid, double* new_grid, std::size_t n) {
     const std::size_t last = n - 1;
 
     for (std::size_t col = 0; col < n; ++col) {
         const double top = interpolate(kTopLeft, kTopRight, col, last);
         const double bottom = interpolate(kBottomLeft, kBottomRight, col, last);
+
         grid[index_of(0, col, n)] = top;
         new_grid[index_of(0, col, n)] = top;
+
         grid[index_of(last, col, n)] = bottom;
         new_grid[index_of(last, col, n)] = bottom;
     }
@@ -90,13 +97,16 @@ void initialize_boundaries(double* grid, double* new_grid, std::size_t n) {
     for (std::size_t row = 0; row < n; ++row) {
         const double left = interpolate(kTopLeft, kBottomLeft, row, last);
         const double right = interpolate(kTopRight, kBottomRight, row, last);
+
         grid[index_of(row, 0, n)] = left;
         new_grid[index_of(row, 0, n)] = left;
+
         grid[index_of(row, last, n)] = right;
         new_grid[index_of(row, last, n)] = right;
     }
 }
 
+// Решает задачу методом Якоби на двух сетках.
 Result solve(const Config& cfg) {
     const std::size_t n = cfg.size;
     const std::size_t total = n * n;
@@ -106,12 +116,14 @@ Result solve(const Config& cfg) {
 
     double* grid_a = grid.data();
     double* grid_b = new_grid.data();
+
     initialize_boundaries(grid_a, grid_b, n);
 
     double error = std::numeric_limits<double>::infinity();
     int iterations = 0;
     bool use_a_as_source = true;
 
+    // Оба массива один раз копируются на устройство.
 #pragma acc data copy(grid_a[0:total], grid_b[0:total])
     {
         while (iterations < cfg.max_iterations && error > cfg.epsilon) {
@@ -120,6 +132,8 @@ Result solve(const Config& cfg) {
 
             error = 0.0;
 
+            // Параллельный пересчёт внутренних точек.
+            // Каждый поток читает src и пишет только свою ячейку dst.
 #pragma acc parallel loop collapse(2) present(src[0:total], dst[0:total])
             for (std::size_t row = 1; row < n - 1; ++row) {
                 for (std::size_t col = 1; col < n - 1; ++col) {
@@ -131,10 +145,15 @@ Result solve(const Config& cfg) {
                 }
             }
 
+            // Параллельный поиск максимальной ошибки.
+            // reduction собирает максимум из локальных значений потоков.
 #pragma acc parallel loop collapse(2) reduction(max:error) present(src[0:total], dst[0:total])
             for (std::size_t row = 1; row < n - 1; ++row) {
                 for (std::size_t col = 1; col < n - 1; ++col) {
-                    const double diff = std::fabs(dst[index_of(row, col, n)] - src[index_of(row, col, n)]);
+                    const double diff =
+                        std::fabs(dst[index_of(row, col, n)] -
+                                  src[index_of(row, col, n)]);
+
                     error = std::max(error, diff);
                 }
             }
@@ -147,13 +166,17 @@ Result solve(const Config& cfg) {
     Result result;
     result.iterations = iterations;
     result.error = error;
+
     result.grid = use_a_as_source ? std::move(grid) : std::move(new_grid);
+
     return result;
 }
 
+// Печатает итоговую сетку в консоль.
 void print_grid(const std::vector<double>& grid, std::size_t n) {
     std::cout << "Grid " << n << "x" << n << ":\n";
     std::cout << std::fixed << std::setprecision(6);
+
     for (std::size_t row = 0; row < n; ++row) {
         for (std::size_t col = 0; col < n; ++col) {
             std::cout << std::setw(11) << grid[index_of(row, col, n)] << ' ';
@@ -164,6 +187,8 @@ void print_grid(const std::vector<double>& grid, std::size_t n) {
 
 }  // namespace
 
+// Точка входа в программу.
+// Читает параметры, запускает расчёт и выводит результат.
 int main(int argc, char** argv) {
     try {
         const Config cfg = parse_args(argc, argv);
@@ -172,6 +197,7 @@ int main(int argc, char** argv) {
         const auto start = std::chrono::steady_clock::now();
         const Result result = solve(cfg);
         const auto finish = std::chrono::steady_clock::now();
+
         const double elapsed_seconds =
             std::chrono::duration<double>(finish - start).count();
 
